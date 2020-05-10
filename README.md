@@ -1,7 +1,7 @@
 # Projet_Transverse
 
-Groupe : Ban Ban et ses droles de dames
-composé de :
+Groupe : Ban Ban et ses droles de dames  
+Composé de :
 
 - Meriam Hammouda [hammouda.meriam@yahoo.fr]
 - Lina Saidane [lina.saidane96@gmail.com]
