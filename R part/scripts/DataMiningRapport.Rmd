@@ -1,0 +1,187 @@
+---
+title: "MBDCDO - Projet Transverse"
+author:
+  - Meriam Hammouda^[hammouda.meriam@yahoo.fr]
+  - Khaoula Elmoutamid^[khaoula.elmoutamid@gmail.com]
+  - Lina Saidane^[lina.saidane96@gmail.com]
+  - Esteban Gobert^[esteban.gobert@me.com]
+date: "3 mai 2020"
+knit: (function(inputFile, encoding) { 
+      out_dir <- '../outputs';
+      rmarkdown::render(inputFile,
+                        encoding=encoding, 
+                        output_file=file.path(dirname(inputFile), out_dir, 'Rapport_Projet_Transverse.html')) })
+output:
+  rmdformats::html_clean:
+    highlight: kate
+    toc: yes
+    toc_depth: 5
+    self_contained: true
+    code_folding: show
+    thumbnails: true
+    gallery: true
+    fig_height: 4
+    df_print: kable
+---
+
+
+```{r setup, echo=FALSE, cache=FALSE}
+library(knitr)
+library(rmdformats)
+
+## Global options
+options(max.print="75")
+opts_chunk$set(echo=FALSE,
+	             cache=TRUE,
+               prompt=FALSE,
+               tidy=TRUE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE)
+opts_knit$set(width=75,
+              root.dir = "../")
+
+maxtblheight <- 700
+```
+
+
+```{r load_functions, message=FALSE, warning=FALSE, include=FALSE}
+# Chargememt des fonctions sources
+source("scripts/Importation.R")
+source("scripts/nettoyage.R")
+```
+
+# Problématique
+
+## Contexte et objectifs
+
+Pour la réalisation de ce projet nous disposons de 5 bases de données appartenant à une enseigne de magasin de…’ : “CLIENT”, “ENTETES TICKETS “ LIGNES TICKETS”, “REF ARTICLES”, “REF MAGASINS”.
+Dans un premier temps nous allons nous intéresser aux données de la table “CLIENT”.  
+
+Il s’agit principalement de données à propos de :  
+
+* IDCLIENT : clé unique par clients.
+* CIVILITE : comprend les civilités “Madame” et “Monsieur”.
+* DATE DE NAISSANCE: c’est à partir de cette variable que nous allons par la suite calculer l’âge.
+* MAGASIN : permet de définir le périmètre géographique 
+* DATE DEBUT ADHESION : ouverture d’un nouveau contrat d’adhésion. Première date d’adhésion du client. 
+* DATE READHESION : nouveau contrat d’un ancien client (revenu).
+* DATE FIN ADHESION : date fin de contrat du client au sein du magasin.
+* VIP :  clients non VIP ou VIP (variable binaire 0 et 1)
+* CODEINSEE : code de chiffres et/ou de lettres qui permet d'identifier une activité professionnelle. Il est établi par l'Institut national de la statistique et des études économiques. 
+* PAYS : l’enseigne se situe dans 27 pays (européens et asiatiques en majorité).  
+
+
+ > L’objectif principal de cette étude est de mettre en place une politique anti-attrition des clients non VIP. Pour cela, nous allons concevoir un outil d’aide à la décision, qui va aider à prédire les clients non VIP susceptible de partir. Le déploiement de cet outil, dans un contexte d’entreprise va permettre aux experts métiers (équipes marketing) de mettre en place une stratégie anti-attrition (retenir les clients, optimiser les offres commerciales, mieux cibler une campagne marketing, diminuer le risque, personnaliser les actions commerciales, etc.). 
+
+Période d’étude : nous disposons de données historisées qui s’étendent sur trois ans : 2016 (n-2) au 1er janvier 2018 (n). Mise en place d’un échantillon d’apprentissage des clients non vip churner.  
+
+Période de test : choix de cette période en fonction des remontées métiers et en dehors si possible d’une grande campagne marketing déjà faite. (Nous ne disposons de cette donnée, il nous faut alors une indication d’experts métier). Mise en place d’un échantillon test contenant des clients non vip non churner (période à définir avec le commanditaire).  
+
+Définition du périmètre d’étude : uniquement les clients non vip qui ne sont pas churner (non sorti). Les clients VIP et les clients churner (qui ne sont plus adhérents) ne rentrent pas dans notre étude.  
+
+Dans le périmètre de clientèle à prédire nous aurons des clients non VIP partant ou non partant.  
+
+## Définition de la variable cible
+
+> Variable cible clients non VIP churner de l’année N+1 (2019) .
+On désigne par churner un client qui ne dispose plus de contrats d’adhésion au magasin.
+*Note : la variable churner n’existait pas dans notre base. Elle est construite à partir d’autres variables que sont : date fin d’adhésion et année N (1er janvier 2018). On a considéré que tous les clients disposant d’une date de fin d'adhésion < année N sont des churner. Et ceux au-dessus de cette valeur comme étant des non-churner. Nous avons pris à ce niveau là de réduire notre périmètre d’étude aux clients non VIP non churner (suppression de toutes les observations des clients non VIP churner).
+
+Client non-VIP = Nous avons considéré que des clients non-VIP étaient ceux qui disposaient de la variable VIP égale à 0 (suppression des clients VIP égale à 1) ainsi que d’une modalité churner considérée comme fausse. Dans notre table “Clients” les non-VIP représentent : ...%  
+
+# Statistiques descriptives
+
+## Table Client
+
+```{r summary_client}
+print(
+  CLIENT_nVIP_CHURNER %>%
+    select(-IDCLIENT) %>%
+    dfSummary(round.digits = 2,
+          na.col = TRUE,
+          varnumbers = FALSE,
+          graph.magnif = 0.75,
+          plain.ascii = FALSE),
+      max.tbl.height = maxtblheight,
+      method = 'render')
+```
+
+## Table Entetes_Ticket
+
+```{r summary_entetes}
+print(
+  ENTETES_TICKET_filtred %>%
+    select(-c(IDCLIENT, IDTICKET)) %>%
+    dfSummary(round.digits = 2,
+          na.col = TRUE,
+          varnumbers = FALSE,
+          graph.magnif = 0.75,
+          plain.ascii = FALSE),
+      max.tbl.height = maxtblheight,
+      method = 'render')
+```
+
+## Table Lignes_Ticket
+
+```{r summary_lignes}
+print(
+  LIGNES_TICKET_filtred %>%
+    select(-c(IDTICKET)) %>%
+    dfSummary(round.digits = 2,
+          na.col = TRUE,
+          varnumbers = FALSE,
+          graph.magnif = 0.75,
+          plain.ascii = FALSE),
+      max.tbl.height = maxtblheight,
+      method = 'render')
+```
+
+## Table Ref_Article
+
+```{r summary_article}
+print(
+  REF_ARTICLE %>%
+    dfSummary(round.digits = 2,
+          na.col = TRUE,
+          varnumbers = FALSE,
+          graph.magnif = 0.75,
+          plain.ascii = FALSE),
+      max.tbl.height = maxtblheight,
+      method = 'render')
+```
+
+## Table Ref_Magasin
+
+```{r summary_magasin}
+print(
+  REF_MAGASIN %>%
+    dfSummary(round.digits = 2,
+          na.col = TRUE,
+          varnumbers = FALSE,
+          graph.magnif = 0.75,
+          plain.ascii = FALSE),
+      max.tbl.height = maxtblheight,
+      method = 'render')
+```
+
+# Diagnostic en termes de valeurs manquantes, extrêmes et aberrantes
+
+## Nettoyage des valeurs manquantes :
+
+Date de naissance, date de réadhésion, code INSEE et pays.
+
+* Pour la date de naissance nous allons la convertir en âge et la  méthode d’imputation utilisée est le LOCF (reprend la valeur juste avant) → 38,6% de NA. On considère que cette variable est une variable non aléatoire car elle dépend d’une autre variable qui est l’âge.
+
+* Pour les pays manquants on peut les déterminer par le code INSEE de la table client si elle existe. cela correspond à 0,0005% de NA. C’est également une variable non aléatoire car peut se compléter par la variable “code INSEE”.
+
+* Code INSEE : on peut en déduire les valeurs manquantes via le site : https://public.opendatasoft.com/explore/dataset/correspondance-code-insee-code-postal/table/ et par la géolocalisation des magasins → 2,9% de NA. C’est donc une variable non aléatoire ! 
+
+* Date de réadhésion correspond à 38,1 % de NA. Il ne s’agit pas réellement de données manquantes,cela signifie qu’ils ne se sont juste pas réadhérer.
+
+## Nettoyage des valeurs aberrantes :
+
+
+
+## Nettoyage des valeurs extrêmes :
+

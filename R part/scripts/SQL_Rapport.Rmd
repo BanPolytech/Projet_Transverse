@@ -1,0 +1,251 @@
+---
+title: "SQL_Rapport"
+author:
+  - Meriam Hammouda^[hammouda.meriam@yahoo.fr]
+  - Khaoula Elmoutamid^[khaoula.elmoutamid@gmail.com]
+  - Lina Saidane^[lina.saidane96@gmail.com]
+  - Esteban Gobert^[esteban.gobert@me.com]
+date: "`r Sys.Date()`"
+knit: (function(inputFile, encoding) { 
+      out_dir <- '../outputs';
+      rmarkdown::render(inputFile,
+                        encoding=encoding, 
+                        output_file=file.path(dirname(inputFile), out_dir, 'Rapport_SQL_Projet_Transverse.html')) })
+output:
+  rmdformats::html_clean:
+    highlight: kate
+    toc: yes
+    toc_depth: 5
+    self_contained: true
+    code_folding: show
+    thumbnails: false
+    gallery: true
+    fig_height: 4
+    df_print: kable
+---
+
+
+```{r setup, echo=FALSE, cache=FALSE}
+library(knitr)
+library(rmdformats)
+
+## Global options
+options(max.print="75")
+opts_chunk$set(echo=FALSE,
+               cache=TRUE,
+               prompt=FALSE,
+               tidy=TRUE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE)
+opts_knit$set(width=75,
+              root.dir = "../")
+```
+
+```{r importlibrary, message=FALSE, warning=FALSE, include=FALSE}
+library(readr)
+library(ggplot2)
+library(plotly)
+library(dplyr)
+library(hrbrthemes)
+library(tidyverse)
+library(zoo)
+library(formattable)
+library(ggrepel)
+```
+
+```{r importdata, echo=FALSE, message=FALSE, warning=FALSE}
+
+exercice1_results <- read_csv("inputs/exercice1_results.csv", 
+    col_types = cols(adherent = col_number(), 
+        churner = col_number(), new_n1 = col_number(), 
+        new_n2 = col_number(), vip = col_number()))
+
+exercice1b <- read_csv("inputs/exercice1b.csv", 
+    col_types = cols(idclient = col_character(), 
+        year = col_character()))
+
+exercice1c <- read_csv("inputs/exercice1c.csv", 
+    col_types = cols(age = col_number(), 
+        age_tranche = col_character(), civilite = col_character()))
+
+exercice2a <- read_csv("inputs/exercice2a.csv", 
+    col_types = cols(actifs_nmoins1 = col_number(), 
+        actifs_nmoins2 = col_number(), difftotaux = col_number(), 
+        indevol = col_number(), nb_clients = col_number(), 
+        totalttcnmoins1 = col_number(), totalttcnmoins2 = col_number()))
+
+exercice2b <- read_csv("inputs/exercice2b.csv", 
+    col_types = cols(count = col_number()))
+
+exercice3a <- read_csv("inputs/exercice3a.csv", 
+    col_types = cols(year = col_character()))
+
+exercice3b <- read_csv("inputs/exercice3b.csv", 
+    col_types = cols(rank = col_number()))
+
+```
+
+# 1. Étude global
+
+## a. Répartition Adhérent / VIP
+
+```{r exo1a, echo=FALSE, message=FALSE, warning=FALSE}
+data <- data.frame(
+  group = colnames(exercice1_results),
+  values = as.numeric(as.vector(exercice1_results[1,]))  
+)
+
+colors <- c('rgb(211,94,96)', 'rgb(128,133,133)', 'rgb(144,103,167)', 'rgb(171,104,87)', 'rgb(114,147,203)')
+
+data %>%
+  plot_ly(labels = ~group, values = ~values, type = 'pie',
+          textposition = 'inside',
+        textinfo = 'label+percent',
+        insidetextfont = list(color = '#FFFFFF'),
+        hoverinfo = 'text',
+        text = ~paste(values, ' clients'),
+        marker = list(colors = colors,
+                      line = list(color = '#FFFFFF', width = 1)),
+                      #The 'pull' attribute can also be used to create space between the sectors
+        showlegend = FALSE) %>%
+  layout(title = 'Répartition Adhérent / VIP',
+         xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+
+```
+
+## b. Comportement du CA GLOBAL par client N-2 vs N-1
+
+```{r exo1b, echo=FALSE, message=FALSE, warning=FALSE}
+exercice1b_woextr <- exercice1b %>%
+  filter(ntile > 1, ntile < 99)
+
+exercice1b_woextr %>%
+  plot_ly(x = ~year, y = ~sum, type = "box")
+
+```
+
+## c. Répartition âge x sexe
+
+```{r exo1c, echo=FALSE, message=FALSE, warning=FALSE}
+exercice1c %>%
+  group_by(age_tranche, civilite) %>%
+  summarise(cnt = n()) %>%
+  ggplot(aes(x = (age_tranche), y = cnt, fill = civilite)) +
+  geom_bar(position = "dodge", stat = "identity")
+
+```
+
+# 2. Etude par magasin
+
+## a. Résultat par magasin (+1 ligne Total)
+
+```{r exo2a, echo=FALSE, message=FALSE, warning=FALSE}
+
+total_Client <- sum(as.integer(exercice2a$nb_clients), na.rm = TRUE)
+total_clientActifN2 <- sum(as.integer(exercice2a$actifs_nmoins2), rm.na= TRUE)
+total_clientActifN1 <- sum(as.integer(exercice2a$actifs_nmoins1), rm.na= TRUE)
+total_evolutionClientActif <- round(total_clientActifN2/total_clientActifN1 * 100 -100,2)
+total_TOTALTTC_magasin_n2 <- sum(as.numeric(exercice2a$totalttcnmoins2), rm.na= TRUE)
+total_TOTALTTC_magasin_n1 <- sum(as.numeric(exercice2a$totalttcnmoins1), rm.na= TRUE)
+total_evolutionTOTALTTC <- total_TOTALTTC_magasin_n2 - total_TOTALTTC_magasin_n1
+total_indice <- NULL
+if(total_evolutionClientActif >= 0 & total_evolutionTOTALTTC >= 0){
+    total_indice <- 1
+  }else if(total_evolutionClientActif < 0 & total_evolutionTOTALTTC < 0){
+    total_indice <- -1
+  }else{
+    total_indice <- 0
+  }
+
+total <- data.frame("Total",
+                      total_Client,
+                      total_clientActifN2,
+                      total_clientActifN1,
+                      total_evolutionClientActif,
+                      total_TOTALTTC_magasin_n2, 
+                      total_TOTALTTC_magasin_n1,
+                      total_evolutionTOTALTTC,
+                      total_indice
+  )
+
+# Chagement du nom des colonnes de la table resultat
+  colnames(exercice2a) <- c("Code Magasin", "Nombre Clients", "# Clients Actifs N-2","# Clients Actifs N-1", "Evolution client Actif (%)", "Total TTC N-2","Total TTC N-1", "Evolution Total TTC", "Indice Évolution")
+  # Chagement du nom des colonnes de la table total
+  names(total) <- c("Code Magasin", "Nombre Clients", "# Clients Actifs N-2","# Clients Actifs N-1", "Evolution client Actif (%)", "Total TTC N-2","Total TTC N-1", "Evolution Total TTC", "Indice Évolution")
+  # Ajout de la ligne total
+  
+   # creation du texte formatter utiliser sur l'evolution des clients actif et du total ttc
+  color_text_formatter <- formatter(
+    "span", 
+    style = x ~ formattable::style(
+      color = ifelse(x > 0, "green", ifelse(x < 0, "red", "black"))))
+  
+  #  creation du  formatter utiliser pour representer l'index
+  improvement_formatter <- formatter(
+    "span", 
+    style = x ~ formattable::style(
+      font.weight = "bold", 
+      color = ifelse(x > 0, "green", ifelse(x < 0, "red", "black"))), 
+    x ~ icontext(ifelse(x > 0, "arrow-up", ifelse(x < 0, "arrow-down", "arrow-right")), text = list(NULL))
+  )
+  
+exercice2a <- exercice2a[order(-exercice2a$`Indice Évolution`),]
+  
+tablefinal <- rbind(exercice2a, total)
+  
+my_color_bar <- function(color) {
+  mainpart <- color_bar(color)
+  function(x) {
+    start <- x[-length(x)]
+    last <- x[length(x)]          
+    c(mainpart(start), last)
+  }
+}
+
+
+
+formattable(tablefinal,
+            list("Evolution client Actif (%)" = color_text_formatter,
+                 "Evolution Total TTC"= color_text_formatter, 
+                 "Nombre Clients" = my_color_bar("lightblue"),
+                 "Indice Évolution" = improvement_formatter),
+            filter = "Indice Évolution")
+  
+```
+
+## b. Distance CLIENT / MAGASIN
+
+```{r exo2b, echo=FALSE, message=FALSE, warning=FALSE}
+exercice2b %>%
+  ggplot(aes(x=distance, y=count)) +
+  geom_bar(stat = "identity", fill="#69b3a2", color="#e9ecef", alpha=0.8) +
+  ggtitle("Nombre de clients par distance") +
+  theme_ipsum() +
+    theme(
+      plot.title = element_text(size=15)
+    )
+
+```
+
+# 3. Etude par univers
+
+## a. Univers
+
+```{r exo3a, echo=FALSE, message=FALSE, warning=FALSE}
+exercice3a %>%
+  ggplot(aes(fill = year, y = sum, x = codeunivers)) +
+  geom_bar(position = "dodge", stat = "identity")
+
+```
+
+## b. Top par univers
+
+```{r exo3b, echo=FALSE, message=FALSE, warning=FALSE}
+exercice3b %>%
+  ggplot(aes(label = paste(codefamille, rank, sep = ' #'), y = sum, x = codeunivers, fill = codeunivers)) +
+  geom_bar(position="dodge", stat="identity") +
+  geom_label_repel()
+  
+```
